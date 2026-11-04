@@ -147,9 +147,9 @@ The opening, then Play ([clip](docs/opening.webm)):
   [instance] [--remove]`; `HORIZON_LAUNCHER_DESKTOP` points it at another folder.
 - **Accounts and quick switch**: the top bar's account chip opens a menu of everyone who can play:
   each signed-in Microsoft account, the offline names the player keeps, and the name the game
-  made up (`horizon-player.txt`). Picking one plays as it from the next Play. Offline names play
-  only while an account that owns the game is signed in ([Microsoft accounts](#microsoft-accounts));
-  signing the last one out keeps them, unplayable until one is back. Settings > Account
+  made up (`horizon-player.txt`). Picking one plays as it from the next Play. Offline names need no
+  account ([Microsoft accounts](#microsoft-accounts)): they play with or without one signed in,
+  and signing an account out keeps them. Settings > Account
   adds offline names (3 to 16 letters, digits or `_`; the game gets `--name`) and forgets them,
   skin and cape files included, and rolls the game's made-up name for a new one; the Console's
   Share log takes the names out of the log too. `horizon-launcher account offline
@@ -452,14 +452,14 @@ The window, the command line and the MCP server all call the same core, `src/bac
 
 ## Microsoft accounts
 
-The launcher starts the game only while a Microsoft account that owns Minecraft: Java Edition is
-signed in, as other launchers do: without one, Play (Home, instances, `horizon-launcher play`, the
-MCP's `play`) says "Sign in with a Microsoft account that owns Minecraft: Java Edition to play"
-and starts nothing. Settings → Accounts signs in: the launcher shows a code, you enter it at
-microsoft.com/link, and the launcher checks that the account owns the game. It asks again at every
-Play, with the token renewal; with no network the last answer stands, and a "doesn't own" blocks
-at once. The account also plays online-mode servers under your own name and skin; offline names
-play LAN and offline-mode servers beside it. The game binary started directly (`horizon-client`,
+A Microsoft account is optional: Play (Home, instances, `horizon-launcher play`, the MCP's `play`)
+starts the game offline, as an offline name or the game's made-up name, with no account signed in.
+An account that owns Minecraft: Java Edition is needed for what only the owner can do: joining
+online-mode servers under your own name and skin, downloading the game from Mojang
+(`prepare --download`) and playing a Minecraft: Java Edition instance. Settings → Accounts signs
+in: the launcher shows a code, you enter it at microsoft.com/link, and the launcher checks that the
+account owns the game. It asks again at every Play, with the token renewal; with no network the
+last answer stands. Offline names play LAN and offline-mode servers, beside an account or not. The game binary started directly (`horizon-client`,
 `horizon-ctl launch`), the harnesses and the servers don't go through this check. Tokens live in the system keychain (Keychain,
 Credential Manager, or the Secret Service on Linux), never in a log or the command line;
 `accounts.json` in the data folder keeps only names and UUIDs. On Linux without a keychain they go

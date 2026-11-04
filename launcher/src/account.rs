@@ -6,9 +6,9 @@
 //! reads once (`--session-file`), never on its command line. Tokens never reach logs, errors or
 //! output.
 //!
-//! The owner gate ([`launch`]): the launcher starts the game only while an account in it owns
-//! Minecraft: Java Edition, as other launchers do. Offline names play behind such an account.
-//! The game binary itself, its harnesses and the servers don't go through the launcher's gate.
+//! The owner check ([`launch`]): whether an account in the launcher owns Minecraft: Java Edition.
+//! Playing offline needs no such account ([`launch_for_game`]); what only an owner can do
+//! (downloading the game from Mojang, a Java instance) still asks the strict check.
 //!
 //! The Azure app (client ID) is Horizon's own and is configuration: `HORIZON_MSA_CLIENT_ID` at
 //! build time, or at run time to override it. Without one, sign-in says it is not configured.
@@ -1516,9 +1516,6 @@ pub enum Player {
     GameName,
 }
 
-const OFFLINE_NEEDS_OWNER: &str =
-    "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.";
-
 /// The secrets an account keeps in `store`, if it still has them there.
 fn secrets_in(store: &dyn SecretStore, uuid: &str) -> Option<Secrets> {
     store
@@ -1616,21 +1613,9 @@ impl Accounts {
         }
     }
 
-    /// Plays as `who`: an account, an offline name (kept, only beside an account that owns the
-    /// game), or the game's own name.
-    pub fn play_as(&mut self, store: &dyn SecretStore, who: Player) -> Result<(), String> {
-        self.play_as_with(store, who, false)
-    }
-
-    /// [`Self::play_as`], where `offline_without_owner` (the window's hidden developer option,
-    /// `backend::Settings::dev_offline`) lets an offline name play without an account that owns
-    /// the game.
-    pub fn play_as_with(
-        &mut self,
-        store: &dyn SecretStore,
-        who: Player,
-        offline_without_owner: bool,
-    ) -> Result<(), String> {
+    /// Plays as `who`: an account, an offline name (kept, no account needed), or the game's own
+    /// name.
+    pub fn play_as(&mut self, _store: &dyn SecretStore, who: Player) -> Result<(), String> {
         match who {
             Player::Microsoft(uuid) => {
                 if !self.accounts.iter().any(|a| a.uuid == uuid) {
@@ -1639,9 +1624,6 @@ impl Accounts {
                 self.selected = Some(uuid);
             }
             Player::Offline(name) => {
-                if !offline_without_owner && !self.has_owner(store) {
-                    return Err(OFFLINE_NEEDS_OWNER.into());
-                }
                 let name = self.add_offline(&name)?;
                 self.selected = None;
                 self.offline_selected = Some(name);
@@ -1766,8 +1748,9 @@ pub fn take_unsaved() -> Option<String> {
     UNSAVED.lock().ok()?.take()
 }
 
-/// The owner gate: the game starts only while an account in the launcher owns Minecraft: Java
-/// Edition. The accounts are asked again, the selected one first, until one owns it; each keeps
+/// The strict owner check: passes only while an account in the launcher owns Minecraft: Java
+/// Edition (what downloads the game and a Java instance ask; [`launch_for_game`] lets offline play
+/// through without one). The accounts are asked again, the selected one first, until one owns it; each keeps
 /// the answer in the keychain. An account that gets no answer (no network) keeps its last one, so
 /// being offline never blocks a player who passed before, while "doesn't own" blocks at once.
 /// The caller saves `accounts` (renewed names and skins).
@@ -1843,19 +1826,17 @@ pub fn launch(
     }
 }
 
-/// The owner gate before the game starts. With the window's hidden developer option
-/// (`backend::Settings::dev_offline`, `offline_without_owner`) no owner is no refusal: the game
-/// starts offline, without a session and without an `owner`. Downloads never come through here:
-/// `backend::download_for_owner` asks [`launch`] itself, so the option never downloads the game.
+/// The pass before the game starts. No owner is no refusal: the game starts offline, without a
+/// session and without an `owner`. Downloads never come through here:
+/// `backend::download_for_owner` asks [`launch`] itself, so offline play never downloads the game.
 pub fn launch_for_game(
     ep: &Endpoints,
     client_id: Option<&str>,
     store: &dyn SecretStore,
     accounts: &mut Accounts,
-    offline_without_owner: bool,
 ) -> Result<Launch, NoOwner> {
     match launch(ep, client_id, store, accounts) {
-        Err(NoOwner) if offline_without_owner => Ok(Launch::default()),
+        Err(NoOwner) => Ok(Launch::default()),
         pass => pass,
     }
 }
@@ -2092,20 +2073,15 @@ pub struct GameSession {
     pub env: Vec<(&'static str, String)>,
 }
 
-/// The owner gate for the game about to start, then the selected account's session in a file
-/// for it, and the other accounts' for its splitscreen players. `offline_without_owner`: see
-/// [`launch_for_game`].
-pub fn session_for_game(
-    game_home: &Path,
-    offline_without_owner: bool,
-) -> Result<GameSession, NoOwner> {
+/// The pass for the game about to start, then the selected account's session in a file
+/// for it, and the other accounts' for its splitscreen players: see [`launch_for_game`].
+pub fn session_for_game(game_home: &Path) -> Result<GameSession, NoOwner> {
     let mut accounts = Accounts::load();
     let pass = launch_for_game(
         &Endpoints::live(),
         client_id().as_deref(),
         store(),
         &mut accounts,
-        offline_without_owner,
     )?;
     let env = split_sessions(
         game_home,
@@ -2327,8 +2303,8 @@ fn account_sessions_until(
     )]
 }
 
-/// Who plays the real Minecraft: Java Edition (a Java instance), past the owner gate itself
-/// ([`launch`]): the selected account when it owns the game, else one that does. With no answer
+/// Who plays the real Minecraft: Java Edition (a Java instance), past the owner check
+/// itself ([`launch`]): the selected account when it owns the game, else one that does. With no answer
 /// from the services, an account that owned it plays with its last token. Mojang's game takes the
 /// token on its command line, as Mojang's launcher gives it; that command is never logged.
 pub fn java_player() -> Result<crate::java_launch::Player, String> {

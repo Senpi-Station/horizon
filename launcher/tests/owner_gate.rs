@@ -1,13 +1,15 @@
-//! The owner gate from the outside: with no account that owns Minecraft: Java Edition in the
-//! launcher, neither `horizon-launcher play` nor the MCP server's play starts the game.
+//! Offline play from the outside: with no account that owns Minecraft: Java Edition in the
+//! launcher, `horizon-launcher play` and the MCP server's play are not refused for it. They go
+//! on to the next check (here, that the installed version isn't prepared yet).
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 const REFUSED: &str = "Sign in with a Microsoft account that owns Minecraft: Java Edition to play.";
+const NOT_PREPARED: &str = "is not prepared yet";
 
 /// Fresh homes with one installed (not prepared) version and an offline name, as a player who
-/// played offline before the gate has.
+/// plays offline has.
 fn home(name: &str) -> PathBuf {
     let root =
         std::env::temp_dir().join(format!("horizon-owner-gate-{name}-{}", std::process::id()));
@@ -44,13 +46,15 @@ fn text(out: &Output) -> String {
 }
 
 #[test]
-fn the_cli_refuses_to_play_without_an_owner() {
+fn the_cli_does_not_ask_for_an_owner_to_play() {
     let root = home("cli");
     let out = launcher(&root, &["play"]).output().unwrap();
     let said = text(&out);
+    // Not refused for the missing account: it stops at the version that isn't prepared.
+    assert!(!said.contains(REFUSED), "{said}");
+    assert!(!said.contains("horizon-launcher account sign-in"), "{said}");
     assert!(!out.status.success(), "{said}");
-    assert!(said.contains(REFUSED), "{said}");
-    assert!(said.contains("horizon-launcher account sign-in"), "{said}");
+    assert!(said.contains(NOT_PREPARED), "{said}");
     // Nothing of the game ran, and the offline name is still there.
     assert!(!root.join("game/sessions").exists());
     let accounts = std::fs::read_to_string(root.join("launcher/accounts.json")).unwrap();
@@ -59,7 +63,7 @@ fn the_cli_refuses_to_play_without_an_owner() {
 }
 
 #[test]
-fn the_mcp_server_refuses_to_play_without_an_owner() {
+fn the_mcp_server_does_not_ask_for_an_owner_to_play() {
     let root = home("mcp");
     let mut child = launcher(&root, &["mcp"])
         .stdin(Stdio::piped())
@@ -84,6 +88,7 @@ fn the_mcp_server_refuses_to_play_without_an_owner() {
         .expect("a reply to play");
     assert_eq!(reply["result"]["isError"], true, "{reply}");
     let said = reply["result"]["content"][0]["text"].as_str().unwrap();
-    assert!(said.contains(REFUSED), "{said}");
+    assert!(!said.contains(REFUSED), "{said}");
+    assert!(said.contains(NOT_PREPARED), "{said}");
     let _ = std::fs::remove_dir_all(&root);
 }
