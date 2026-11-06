@@ -176,8 +176,8 @@ than Pixelify. Hover and focus are vanilla's white edge.
 - **Inventory tabs** switch the kinds in Mods: the open tab joins the panel under it.
 - **Slots** hold pictures: a mod's or pack's own icon and gallery images from its source,
   downloaded when first shown and kept on disk (`launcher/src/browser/images.rs`); the launcher
-  ships no third-party pictures. The Horizon instance shows a grass block drawn from the player's
-  own prepared Minecraft textures. Sources are named in text ("from Modrinth"): Modrinth's logo is
+  ships no third-party pictures. Plain Minecraft shows Horizon's own grass block
+  (`tools/launcher_grass_block.py`), Horizon the brand icon (`docs/media/brand/icon.svg`). Sources are named in text ("from Modrinth"): Modrinth's logo is
   all rights reserved, so it is not shown.
 - **Partner banner**: the one exception to shipping no third-party pictures. Sculk, a server host,
   sponsors Horizon: its banner (`launcher/assets/sculk-banner.webp`, `launcher/src/partner.rs`) sits
@@ -302,7 +302,7 @@ Light); `tokens.css` carries them as `--night-*`. The game's menus don't use it.
   code for screenshots).
 - **New instance** (`launcher/src/new_instance.rs`): an opaque plate over the dimmed launcher,
   tabs for the kind (Horizon, Vanilla, Modded). A Java kind lists Mojang's versions (search,
-  Snapshots, Old; the newest release chosen), Modded adds the loader (Fabric or Quilt, at its newest
+  Snapshots, Old; the newest release chosen), Modded adds the loader (Fabric, Quilt, Forge or NeoForge, with its logo, at its newest
   stable version), and the name follows the choice ("Fabric 1.21.4") until the player types one.
   Create is the main action.
 
